@@ -15,12 +15,10 @@ public class DrafireServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        super.doGet(req, resp);
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        super.doPost(req, resp);
     }
 
     //在启动的时候，这个就会回调调用
@@ -54,7 +52,7 @@ public class DrafireServlet extends HttpServlet {
 
         initFlashMapManager(context);
 
-        System.out.println("GPSpring MVC is init.");
+        System.out.println("DrafireSpring MVC is init.");
     }
 
     private void initMultipartResolver(DrafireContext context) {

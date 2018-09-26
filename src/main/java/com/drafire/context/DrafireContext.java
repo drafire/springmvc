@@ -1,10 +1,12 @@
 package com.drafire.context;
 
+import com.drafire.framework.annotation.DrafireAutowire;
 import com.drafire.framework.annotation.DrafireController;
 import com.drafire.framework.annotation.DrafireService;
 
 import java.io.File;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +18,7 @@ public class DrafireContext {
     //声明一个map，也就是IOC容器
     private Map<String, Object> instanceMap = new ConcurrentHashMap<String, Object>();
 
+    //内部使用，不需要有get方法
     private List<String> classCache = new ArrayList<String>();
 
     //声明一个读取propertie 的类
@@ -92,12 +95,44 @@ public class DrafireContext {
         }
     }
 
-    private void populate() {
+    private void populate() throws IllegalAccessException {
+        if (classCache.isEmpty()) {
+            return;
+        }
+
+        for (Map.Entry<String, Object> entry : instanceMap.entrySet()) {
+            //把所有的属性都取出来，包括私有属性
+            Field[] fields = entry.getValue().getClass().getDeclaredFields();
+            for (Field field : fields) {
+                if (!field.isAnnotationPresent(DrafireAutowire.class)) {
+                    continue;
+                }
+
+                //取出名字
+                DrafireAutowire autowire = field.getAnnotation(DrafireAutowire.class);
+                String id = field.getType().getName();
+                //如果有设置名字
+                if (!"".equalsIgnoreCase(autowire.value())) {
+                    id = autowire.value();
+                }
+                field.setAccessible(true);        //使私有域可以访问
+
+                field.set(entry.getValue(), instanceMap.get(id));    //这里就是赋值的意思，也就是注入
+            }
+        }
     }
 
     private String lowerFirstChar(String name) {
         char[] chars = name.toCharArray();
         chars[0] += 32;
         return String.valueOf(chars);
+    }
+
+    public Map<String, Object> getInstanceMap() {
+        return instanceMap;
+    }
+
+    public Properties getConfig() {
+        return config;
     }
 }

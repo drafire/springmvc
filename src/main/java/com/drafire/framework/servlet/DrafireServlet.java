@@ -1,4 +1,4 @@
-package com.drafire.framework;
+package com.drafire.framework.servlet;
 
 import com.drafire.context.DrafireContext;
 
@@ -23,6 +23,7 @@ public class DrafireServlet extends HttpServlet {
         super.doPost(req, resp);
     }
 
+    //在启动的时候，这个就会回调调用
     @Override
     public void init(ServletConfig config) throws ServletException {
         //先初始化IOC容器

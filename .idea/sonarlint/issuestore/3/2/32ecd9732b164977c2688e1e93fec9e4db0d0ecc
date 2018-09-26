@@ -1,10 +1,10 @@
 
+Ÿsquid:S1186)"€Add a nested comment explaining why this method is empty, throw an UnsupportedOperationException or complete the implementation.(ºæåï8óê©ˆá,
+Jsquid:S1068"'Remove this unused "map" private field.(â×¥Óûÿÿÿÿ8ŸƒŠˆá,
+Lsquid:S1068".Remove this unused "classCache" private field.(¹âö¸8¬Ï‰á,
+Psquid:S1172)"2Remove this unused method parameter "packageName".(ºæåï8÷ä‡‰á,
+Fsquid:S1148#"#Use a logger to log this exception.(€ÉÔ…ıÿÿÿÿ8§€¦ˆá,
 V
 squid:S106&"9Replace this use of System.out or System.err by a logger.(Şù­8¸¤•ˆá,
-Fsquid:S1148#"#Use a logger to log this exception.(€ÉÔ…ıÿÿÿÿ8§€¦ˆá,
 Ÿsquid:S11860"€Add a nested comment explaining why this method is empty, throw an UnsupportedOperationException or complete the implementation.(™šş8ÆË¬ˆá,
-Lsquid:S1068".Remove this unused "classCache" private field.(¹âö¸8¬Ï‰á,
-Jsquid:S1068"'Remove this unused "map" private field.(â×¥Óûÿÿÿÿ8ŸƒŠˆá,
-Ÿsquid:S1186)"€Add a nested comment explaining why this method is empty, throw an UnsupportedOperationException or complete the implementation.(ºæåï8óê©ˆá,
 ¤squid:S1186-"€Add a nested comment explaining why this method is empty, throw an UnsupportedOperationException or complete the implementation.(Ğ—ÓÕùÿÿÿÿ8ÆË¬ˆá,
-Psquid:S1172)"2Remove this unused method parameter "packageName".(ºæåï8÷ä‡‰á,

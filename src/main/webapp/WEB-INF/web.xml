@@ -11,10 +11,10 @@
     <!--声明servlet-->
     <servlet>
         <servlet-name>drafire.servlet</servlet-name>
-        <servlet-class>com.drafire.framework.DrafireServlet</servlet-class>
+        <servlet-class>com.drafire.framework.servlet.DrafireServlet</servlet-class>
         <init-param>
             <param-name>contextConfigLocation</param-name>
-            <param-value>application.proterties</param-value>
+            <param-value>application.properties</param-value>
         </init-param>
         <load-on-startup>1</load-on-startup>
     </servlet>

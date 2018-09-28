@@ -10,6 +10,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class DrafireServlet extends HttpServlet {
@@ -28,7 +30,10 @@ public class DrafireServlet extends HttpServlet {
     private List<Handler> handlerList = new ArrayList<Handler>();
 
     //<方法,参数> 键值对
-    private Map<Handler,HandlerAdapter> handlerAdapterMap=new HashMap<Handler, HandlerAdapter>();
+    private Map<Handler, HandlerAdapter> handlerAdapterMap = new HashMap<Handler, HandlerAdapter>();
+
+    //视图解释器
+    private List<ViewResolver> viewResolvers = new ArrayList<ViewResolver>();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -151,11 +156,10 @@ public class DrafireServlet extends HttpServlet {
                         if (!"".equals(paramName)) {
                             paramsMap.put(paramName, i);
                         }
-                        handlerAdapterMap.put(handler,new HandlerAdapter(paramsMap));
+                        handlerAdapterMap.put(handler, new HandlerAdapter(paramsMap));
                     }
                 }
             }
-
         }
     }
 
@@ -166,16 +170,66 @@ public class DrafireServlet extends HttpServlet {
     }
 
     private void initViewResolvers(DrafireContext context) {
+        //读取文件内容、替换自定义的占位符和内容、生成html输出
+        //为避免用户能直接访问模板，一般不放在root目录下
+        String template = context.getConfig().getProperty("template");
+        String source = this.getClass().getClassLoader().getResource(template).getFile();
+        File sourceDir = new File(source);
 
+        for (File file : sourceDir.listFiles()) {
+            //把每一个视图的名称和文件添加到ViewResolver中
+            //所谓的解释视图，都是读取文件的内容，并替换掉其中的动态数据、占位符等
+            //最终生成html输出
+            viewResolvers.add(new ViewResolver(file.getName(), file));
+        }
     }
 
     private void initFlashMapManager(DrafireContext context) {
     }
 
+    private void doDispatch(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        //getHandler
+        Handler handler = getHandler(req);
+        if (handler == null) {
+            resp.getWriter().write("not foun url:404");
+            return;
+        }
+        //getHandlerAdapter
+        HandlerAdapter handlerAdapter = getHandlerAdapter(handler);
+        //handler.handle
+    }
+
+    private Handler getHandler(HttpServletRequest request) {
+        if (handlerList.isEmpty()) {
+            return null;
+        }
+
+        String url = request.getRequestURI();
+        //获取根地址
+        String contextPath = request.getContextPath();
+        //获取路径
+        url = url.replace(contextPath, "").replaceAll("/+", "/");
+
+        //循环所有的方法
+        for (Handler handler : handlerList) {
+            Matcher matcher = handler.pattern.matcher(url);
+            if (!matcher.matches()) {
+                continue;
+            }
+            return handler;
+        }
+        return null;
+    }
+
+    private HandlerAdapter getHandlerAdapter(Handler handler) {
+        if (handlerAdapterMap == null) {
+            return null;
+        }
+        return handlerAdapterMap.get(handler);
+    }
+
     /**
      * HandlerMapping 定义
-     *
-     * @author Tom
      */
     private class Handler {
 
@@ -190,7 +244,7 @@ public class DrafireServlet extends HttpServlet {
         }
     }
 
-    private class HandlerAdapter{
+    private class HandlerAdapter {
         private Map<String, Integer> paramMap;
 
         public HandlerAdapter(Map<String, Integer> paramMap) {
@@ -198,4 +252,13 @@ public class DrafireServlet extends HttpServlet {
         }
     }
 
+    private class ViewResolver {
+        protected String viewName;
+        protected File file;
+
+        public ViewResolver(String viewName, File file) {
+            this.viewName = viewName;
+            this.file = file;
+        }
+    }
 }

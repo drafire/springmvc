@@ -3,6 +3,7 @@ package com.drafire.framework.servlet;
 import com.drafire.context.DrafireContext;
 import com.drafire.framework.annotation.DrafireController;
 import com.drafire.framework.annotation.DrafireRequestMapping;
+import com.drafire.framework.annotation.DrafireRequestParam;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -10,8 +11,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -20,7 +23,12 @@ public class DrafireServlet extends HttpServlet {
 
     private static final String LOCATION = "contextConfigLocation";
 
-    private List<Handler> handlerMapping = new ArrayList<Handler>();
+    //方法集合
+    //用list是为了简化数据结构，算是数据结构的内容了。
+    private List<Handler> handlerList = new ArrayList<Handler>();
+
+    //<方法,参数> 键值对
+    private Map<Handler,HandlerAdapter> handlerAdapterMap=new HashMap<Handler, HandlerAdapter>();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -92,6 +100,7 @@ public class DrafireServlet extends HttpServlet {
                 DrafireRequestMapping mapping = clazz.getAnnotation(DrafireRequestMapping.class);
                 url += mapping.value().replaceAll("/+", "/");
             }
+
             //2、分析所有的类下的method，如果有mapping注解的，则解释
             Method[] methods = clazz.getDeclaredMethods();
 
@@ -104,7 +113,7 @@ public class DrafireServlet extends HttpServlet {
                 Pattern pattern = Pattern.compile(regex);
 
                 //3、把解释后的handler 添加到一个list里面
-                handlerMapping.add(new Handler(pattern, instance, method));
+                handlerList.add(new Handler(pattern, instance, method));
 
                 System.out.println("Mapping" + url + " " + method.toString());
             }
@@ -113,6 +122,41 @@ public class DrafireServlet extends HttpServlet {
     }
 
     private void initHandlerAdapters(DrafireContext context) {
+        //所谓的适配，就是解释方法中对应的参数
+        //1、判断方法是否为空
+        if (handlerList.isEmpty()) {
+            return;
+        }
+        //2、定义一个Map<String,Integer> ，其中String 存储的是参数名字，Integer 存储的是参数索引
+        Map<String, Integer> paramsMap = new HashMap<String, Integer>();
+        //3、解释参数
+        for (Handler handler : handlerList) {
+            //3.0、先获取到所有的参数类型
+            Class<?>[] parameterTypes = handler.method.getParameterTypes();
+            //3.1、如果是request和response，则直接添加到map里面
+            for (int i = 0; i < parameterTypes.length; i++) {
+                if (parameterTypes[i] == HttpServletRequest.class || parameterTypes[i] == HttpServletResponse.class) {
+                    paramsMap.put(parameterTypes[i].getName(), i);
+                }
+            }
+
+            //3.2、如果是其他，则获取对应的annotation的value作为名字。问题来了，如果是没有annotation呢?(听说spring中都会加上这个)
+            //这里之所以是一个二维数组，是以为参数名字有相同的情况，但是索引能够解决这个问题
+            Annotation[][] annotations = handler.method.getParameterAnnotations();
+            for (int i = 0; i < annotations.length; i++) {
+                for (Annotation annotation : annotations[i]) {
+                    //如果是参数注解，则解释
+                    if (annotation instanceof DrafireRequestParam) {
+                        String paramName = ((DrafireRequestParam) annotation).value();
+                        if (!"".equals(paramName)) {
+                            paramsMap.put(paramName, i);
+                        }
+                        handlerAdapterMap.put(handler,new HandlerAdapter(paramsMap));
+                    }
+                }
+            }
+
+        }
     }
 
     private void initHandlerExceptionResolvers(DrafireContext context) {
@@ -143,6 +187,14 @@ public class DrafireServlet extends HttpServlet {
             this.pattern = pattern;
             this.controller = controller;
             this.method = method;
+        }
+    }
+
+    private class HandlerAdapter{
+        private Map<String, Integer> paramMap;
+
+        public HandlerAdapter(Map<String, Integer> paramMap) {
+            this.paramMap = paramMap;
         }
     }
 

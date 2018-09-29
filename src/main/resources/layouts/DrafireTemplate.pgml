@@ -1,1 +1,1 @@
-Hello World ，欢迎来到Drafire 的模板，姓名：@{name}，年龄@{age}
+Hello World ,welcome to Drafire's template,name:@{name},age:@{age}

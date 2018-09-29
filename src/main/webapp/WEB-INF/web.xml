@@ -16,11 +16,11 @@
             <param-name>contextConfigLocation</param-name>
             <param-value>application.properties</param-value>
         </init-param>
-        <load-on-startup>1</load-on-startup>
+        <load-on-startup>0</load-on-startup>   <!--1 表示启动程序时候就执行  0 表示启动程序时候不执行 -->
     </servlet>
     <!--声明servletMapping-->
     <servlet-mapping>
         <servlet-name>drafire.servlet</servlet-name>
-        <url-pattern>*.json</url-pattern>
+        <url-pattern>/</url-pattern>      <!--这里用来做匹配拦截url请求,/表示匹配所有-->
     </servlet-mapping>
 </web-app>

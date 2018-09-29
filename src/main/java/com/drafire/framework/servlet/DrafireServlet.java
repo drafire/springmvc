@@ -124,12 +124,11 @@ public class DrafireServlet extends HttpServlet {
                 Pattern pattern = Pattern.compile(regex);
 
                 //3、把解释后的handler 添加到一个list里面
-                handlerList.add(new Handler(pattern, instance, method));
+                handlerList.add(new Handler(pattern, instance.getValue(), method));
 
-                System.out.println("Mapping" + url + " " + method.toString());
+                System.out.println("Mapping：" + regex + " " + method.toString());
             }
         }
-
     }
 
     private void initHandlerAdapters(DrafireContext context) {
@@ -293,7 +292,7 @@ public class DrafireServlet extends HttpServlet {
             Map<String, String[]> paramMap = request.getParameterMap();
             //3、通过反射获得对应的参数值，注意的是，参数只能通过索引赋值
             for (Map.Entry<String, String[]> entry : paramMap.entrySet()) {
-                String value = Arrays.toString(entry.getValue()).replace("\\[|\\]", "").replaceAll("\\s", ",");
+                String value = Arrays.toString(entry.getValue()).replaceAll("\\[|\\]", "").replaceAll(",\\s", ",");
                 if (!this.paramMap.containsKey(entry.getKey())) {
                     continue;
                 }
@@ -350,11 +349,13 @@ public class DrafireServlet extends HttpServlet {
         public String parse(DrafireModelAndView mv) throws IOException {
             StringBuffer stringBuffer = new StringBuffer();
             //声明为只读文件
-            RandomAccessFile accessFile = new RandomAccessFile(this.file, "r");
+            RandomAccessFile raf = new RandomAccessFile(this.file, "rw");
             try {
                 //模板就是使用正则表达式来替换字符串
                 String result;
-                while (null != (result = accessFile.readLine())) {
+                while (null != (result = raf.readLine())) {
+                    //使用中文会有读取的字节的问题
+                    //while (null != (result = new String(raf.readLine().getBytes("ISO-8859-1"), "utf-8"))) {
                     Matcher m = matcher(result);
                     //如果找到匹配的内容，则替换
                     while (m.find()) {
@@ -364,15 +365,16 @@ public class DrafireServlet extends HttpServlet {
                             if (null == paramValue) {
                                 continue;
                             }
-                            result = result.replaceAll("@\\}" + paramName + "\\}", paramValue.toString());
+                            result = result.replaceAll("@\\{" + paramName + "\\}", paramValue.toString());
                         }
-                        stringBuffer.append(result);
                     }
+                    stringBuffer.append(result);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
-                accessFile.close();
+                raf.close();
+
             }
             return stringBuffer.toString();
         }

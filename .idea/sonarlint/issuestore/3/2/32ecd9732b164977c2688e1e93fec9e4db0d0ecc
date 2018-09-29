@@ -1,8 +1,8 @@
 
-Dsquid:S1148"#Use a logger to log this exception.(€ÉÔ…ıÿÿÿÿ8¨Óà˜á,
-7squid:S3626"Remove this redundant jump.(ÉŠ©ƒ8Ô£Ùšá,
-hsquid:S00112"FDefine and throw a dedicated exception instead of using a generic one.(¨¯çŠûÿÿÿÿ8ƒŞ–šá,
+7squid:S3626"Remove this redundant jump.(ÉŠ©ƒ8­®£ôá,
 t
-squid:S135"YReduce the total number of break and continue statements in this loop to use at most one.(ëèŞÔ8Ô£Ùšá,
+squid:S135"YReduce the total number of break and continue statements in this loop to use at most one.(ëèŞÔ8­®£ôá,
 T
-squid:S106"9Replace this use of System.out or System.err by a logger.(Şù­8¨Óà˜á,
+squid:S106"9Replace this use of System.out or System.err by a logger.(Şù­8­®£ôá,
+hsquid:S00112"FDefine and throw a dedicated exception instead of using a generic one.(¨¯çŠûÿÿÿÿ8­®£ôá,
+Dsquid:S1148"#Use a logger to log this exception.(€ÉÔ…ıÿÿÿÿ8­®£ôá,

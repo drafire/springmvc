@@ -11,13 +11,13 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,10 +37,16 @@ public class DrafireServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        doPost(req, resp);
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        try {
+            doDispatch(req, resp);
+        } catch (Exception e) {
+            resp.getWriter().write("500 error,Message:" + Arrays.toString(e.getStackTrace()));
+        }
     }
 
     //在启动的时候，这个就会回调调用
@@ -187,7 +193,7 @@ public class DrafireServlet extends HttpServlet {
     private void initFlashMapManager(DrafireContext context) {
     }
 
-    private void doDispatch(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    private void doDispatch(HttpServletRequest req, HttpServletResponse resp) throws IOException, InvocationTargetException, IllegalAccessException {
         //getHandler
         Handler handler = getHandler(req);
         if (handler == null) {
@@ -196,7 +202,11 @@ public class DrafireServlet extends HttpServlet {
         }
         //getHandlerAdapter
         HandlerAdapter handlerAdapter = getHandlerAdapter(handler);
-        //handler.handle
+        //handlerAdapter.handle
+        DrafireModelAndView mv = handlerAdapter.handle(req, resp, handler);
+
+        //渲染输出
+        applyDefaultViewName(resp, mv);
     }
 
     private Handler getHandler(HttpServletRequest request) {
@@ -228,6 +238,29 @@ public class DrafireServlet extends HttpServlet {
         return handlerAdapterMap.get(handler);
     }
 
+    private void applyDefaultViewName(HttpServletResponse resp, DrafireModelAndView mv) throws IOException {
+        if (null == mv) {
+            return;
+        }
+        if (viewResolvers.isEmpty()) {
+            return;
+        }
+
+        for (ViewResolver resolver : viewResolvers) {
+            if (!mv.getView().equals(resolver.viewName)) {
+                continue;
+            }
+
+            //解释模板
+            //输出内容到response
+            String result = resolver.parse(mv);
+            if (null != result) {
+                resp.getWriter().write(result);
+                break;
+            }
+        }
+    }
+
     /**
      * HandlerMapping 定义
      */
@@ -250,6 +283,59 @@ public class DrafireServlet extends HttpServlet {
         public HandlerAdapter(Map<String, Integer> paramMap) {
             this.paramMap = paramMap;
         }
+
+        //执行方法，返回ModelAndView
+        public DrafireModelAndView handle(HttpServletRequest request, HttpServletResponse response, Handler handler) throws InvocationTargetException, IllegalAccessException {
+            //1、获得所有的参数类型
+            Class<?>[] types = handler.method.getParameterTypes();
+            Object[] param = new Object[types.length];
+            //2、获得请求的url的参数
+            Map<String, String[]> paramMap = request.getParameterMap();
+            //3、通过反射获得对应的参数值，注意的是，参数只能通过索引赋值
+            for (Map.Entry<String, String[]> entry : paramMap.entrySet()) {
+                String value = Arrays.toString(entry.getValue()).replace("\\[|\\]", "").replaceAll("\\s", ",");
+                if (!this.paramMap.containsKey(entry.getKey())) {
+                    continue;
+                }
+                int index = this.paramMap.get(entry.getKey());
+                param[index] = castStringValue(value, types[index]);
+            }
+
+            //request和response赋值
+            String requestName = HttpServletRequest.class.getName();
+            if (this.paramMap.containsKey(requestName)) {
+                int reqIndex = this.paramMap.get(requestName);
+                param[reqIndex] = request;
+            }
+
+            String responseName = HttpServletResponse.class.getName();
+            if (this.paramMap.containsKey(responseName)) {
+                int respIndex = this.paramMap.get(responseName);
+                param[respIndex] = response;
+            }
+
+            //是否要返回ModelAndView
+            boolean isModelAndView = handler.method.getReturnType() == DrafireModelAndView.class ? true : false;
+            //反射执行方法
+            Object result = handler.method.invoke(handler.controller, param);
+            if (isModelAndView) {
+                return (DrafireModelAndView) result;
+            }
+            return null;
+        }
+
+        //将值转换为指定的类型
+        private Object castStringValue(String value, Class<?> clazz) {
+            if (clazz == String.class) {
+                return value;
+            } else if (clazz == Integer.class) {
+                return Integer.valueOf(value);
+            } else if (clazz == int.class) {
+                return Integer.valueOf(value).intValue();
+            } else {
+                return null;
+            }
+        }
     }
 
     private class ViewResolver {
@@ -259,6 +345,42 @@ public class DrafireServlet extends HttpServlet {
         public ViewResolver(String viewName, File file) {
             this.viewName = viewName;
             this.file = file;
+        }
+
+        public String parse(DrafireModelAndView mv) throws IOException {
+            StringBuffer stringBuffer = new StringBuffer();
+            //声明为只读文件
+            RandomAccessFile accessFile = new RandomAccessFile(this.file, "r");
+            try {
+                //模板就是使用正则表达式来替换字符串
+                String result;
+                while (null != (result = accessFile.readLine())) {
+                    Matcher m = matcher(result);
+                    //如果找到匹配的内容，则替换
+                    while (m.find()) {
+                        for (int i = 1; i <= m.groupCount(); i++) {
+                            String paramName = m.group(i);
+                            Object paramValue = mv.getModel().get(paramName);
+                            if (null == paramValue) {
+                                continue;
+                            }
+                            result = result.replaceAll("@\\}" + paramName + "\\}", paramValue.toString());
+                        }
+                        stringBuffer.append(result);
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                accessFile.close();
+            }
+            return stringBuffer.toString();
+        }
+
+        private Matcher matcher(String str) {
+            Pattern pattern = Pattern.compile("@\\{(.+?)\\}", Pattern.CASE_INSENSITIVE);
+            Matcher m = pattern.matcher(str);
+            return m;
         }
     }
 }
